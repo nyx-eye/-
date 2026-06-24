@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+
+# Results (generated at runtime)
+results/
+*.db
+*.csv
+*.html
+
+# Test videos (large files)
+t/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Checkpoint (runtime data)
+checkpoint.db
