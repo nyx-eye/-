@@ -78,57 +78,83 @@ class MediaDeduplicatorGUI:
         control_frame = tk.Frame(self.root, bg='#f0f0f0', pady=8)
         control_frame.pack(fill=tk.X, padx=20)
         
-        self.start_btn = tk.Button(control_frame, text="开始扫描去重",
-                                   command=self.start_deduplication,
-                                   bg='#2196F3', fg='white', font=("微软雅黑", 10, "bold"),
-                                   padx=15, pady=5, cursor="hand2")
-        self.start_btn.pack(side=tk.LEFT, padx=5)
+        # ── 主控按钮行 ──
+        ctrl_row = tk.Frame(control_frame, bg='#f0f0f0')
+        ctrl_row.pack(fill=tk.X, pady=(0, 2))
 
-        self.pause_btn = tk.Button(control_frame, text="暂停",
+        self.start_btn = tk.Button(ctrl_row, text="开始扫描去重",
+                                   command=self.start_deduplication,
+                                   bg='#2196F3', fg='white', font=("微软雅黑", 9),
+                                   padx=10, pady=4, cursor="hand2")
+        self.start_btn.pack(side=tk.LEFT, padx=3)
+
+        self.pause_btn = tk.Button(ctrl_row, text="暂停",
                                     command=self.pause_deduplication,
                                     bg='#FF9800', fg='white', font=("微软雅黑", 9),
-                                    padx=10, pady=5, cursor="hand2", state='disabled')
-        self.pause_btn.pack(side=tk.LEFT, padx=5)
+                                    padx=10, pady=4, cursor="hand2", state='disabled')
+        self.pause_btn.pack(side=tk.LEFT, padx=3)
 
-        self.resume_btn = tk.Button(control_frame, text="继续",
+        self.resume_btn = tk.Button(ctrl_row, text="继续",
                                      command=self.resume_deduplication,
                                      bg='#4CAF50', fg='white', font=("微软雅黑", 9),
-                                     padx=10, pady=5, cursor="hand2", state='disabled')
-        self.resume_btn.pack(side=tk.LEFT, padx=5)
+                                     padx=10, pady=4, cursor="hand2", state='disabled')
+        self.resume_btn.pack(side=tk.LEFT, padx=3)
 
-        self.stop_btn = tk.Button(control_frame, text="停止",
+        self.stop_btn = tk.Button(ctrl_row, text="停止",
                                    command=self.stop_deduplication,
                                    bg='#f44336', fg='white', font=("微软雅黑", 9),
-                                   padx=10, pady=5, cursor="hand2", state='disabled')
-        self.stop_btn.pack(side=tk.LEFT, padx=5)
-        
-        # 日志输出区
-        self.log_text = scrolledtext.ScrolledText(control_frame, width=68, height=8, font=("Consolas", 10), state="disabled", bg="#222", fg="#d4ff54")
-        self.log_text.pack(side=tk.LEFT, padx=10)
+                                   padx=10, pady=4, cursor="hand2", state='disabled')
+        self.stop_btn.pack(side=tk.LEFT, padx=3)
 
-        # 进度条
+        # ── 操作按钮行 ──
+        op_row = tk.Frame(control_frame, bg='#f0f0f0')
+        op_row.pack(fill=tk.X, pady=(0, 4))
+
+        self.collect_btn = tk.Button(op_row, text="收集结果",
+                                      command=self._gather_and_show,
+                                      bg='#607D8B', fg='white', font=("微软雅黑", 9),
+                                      padx=10, pady=4, cursor="hand2", state='disabled')
+        self.collect_btn.pack(side=tk.LEFT, padx=3)
+
+        self.best_btn = tk.Button(op_row, text="保留最高清晰度",
+                                   command=self._auto_keep_best,
+                                   bg='#607D8B', fg='white', font=("微软雅黑", 9),
+                                   padx=10, pady=4, cursor="hand2", state='disabled')
+        self.best_btn.pack(side=tk.LEFT, padx=3)
+
+        self.numbered_btn = tk.Button(op_row, text="批量标记副本",
+                                       command=self._auto_mark_numbered,
+                                       bg='#607D8B', fg='white', font=("微软雅黑", 9),
+                                       padx=10, pady=4, cursor="hand2", state='disabled')
+        self.numbered_btn.pack(side=tk.LEFT, padx=3)
+
+        # ── 进度 + 日志行 ──
+        progress_row = tk.Frame(control_frame, bg='#f0f0f0')
+        progress_row.pack(fill=tk.X, pady=4)
+
         self.progress_var = tk.IntVar(value=0)
-        self.progress_bar = ttk.Progressbar(control_frame, variable=self.progress_var,
+        self.progress_bar = ttk.Progressbar(progress_row, variable=self.progress_var,
                                              mode='determinate', length=300)
-        self.progress_bar.pack(side=tk.LEFT, padx=10)
-        self.progress_label = tk.Label(control_frame, text="0%",
+        self.progress_bar.pack(side=tk.LEFT, padx=(0, 8))
+        self.progress_label = tk.Label(progress_row, text="0%",
                                         font=("微软雅黑", 9), bg='#f0f0f0', fg='#666', width=5)
         self.progress_label.pack(side=tk.LEFT)
-
-        # ETA 剩余时间标签
-        self.eta_label = tk.Label(control_frame, text="",
+        self.eta_label = tk.Label(progress_row, text="",
                                    font=("微软雅黑", 9), bg='#f0f0f0', fg='#888')
-        self.eta_label.pack(side=tk.LEFT, padx=5)
-
-        # 实时发现重复组计数
-        self.found_label = tk.Label(control_frame, text="",
+        self.eta_label.pack(side=tk.LEFT, padx=8)
+        self.found_label = tk.Label(progress_row, text="",
                                      font=("微软雅黑", 9, "bold"),
                                      bg='#f0f0f0', fg='#e65100')
-        self.found_label.pack(side=tk.LEFT, padx=5)
-
-        self.status_label = tk.Label(control_frame, text="Ready",
+        self.found_label.pack(side=tk.LEFT, padx=8)
+        self.status_label = tk.Label(progress_row, text="Ready",
                                      font=("微软雅黑", 9), bg='#f0f0f0', fg='#666')
-        self.status_label.pack(side=tk.LEFT, padx=10)
+        self.status_label.pack(side=tk.LEFT, padx=8)
+
+        # 日志输出区
+        self.log_text = scrolledtext.ScrolledText(control_frame, width=110, height=6,
+                                                   font=("Consolas", 10), state="disabled",
+                                                   bg="#222", fg="#d4ff54")
+        self.log_text.pack(fill=tk.X, pady=(4, 0))
         
         # 统计信息
         stats_frame = tk.Frame(self.root, bg='#e0e0e0', pady=5)
@@ -255,6 +281,7 @@ class MediaDeduplicatorGUI:
         self._stop_event = threading.Event()
         self.pause_btn.config(state='normal')
         self.resume_btn.config(state='disabled')
+        self.collect_btn.config(state='disabled')
         self.stop_btn.config(state='disabled')
         self.update_status("继续运行...")
         self.append_log("继续运行，从断点恢复...")
@@ -306,7 +333,13 @@ class MediaDeduplicatorGUI:
             
             self.groups = report.get('groups', [])
             summary = report.get('summary', {})
-            
+
+            # 补回已标记删除的文件到 files 列表（导入后缩略图能显示红底卡片）
+            for g in self.groups:
+                for f in g.get("trashed", {}):
+                    if f not in g["files"]:
+                        g["files"].append(f)
+
             stats_text = f"导入报告: {summary.get('image_files', 0)} 图片 | {summary.get('video_files', 0)} 视频 | {len(self.groups)} 组重复 | 可节省 {summary.get('can_save_mb', 0):.2f} MB"
             self.stats_label.config(text=stats_text)
             
@@ -334,7 +367,10 @@ class MediaDeduplicatorGUI:
         self.start_btn.config(state='disabled')
         self.pause_btn.config(state='normal')
         self.resume_btn.config(state='disabled')
+        self.collect_btn.config(state='disabled')
         self.stop_btn.config(state='disabled')
+        self.best_btn.config(state='disabled')
+        self.numbered_btn.config(state='disabled')
         self.progress_var.set(0)
         self.progress_label.config(text="0%")
         self.eta_label.config(text="")
@@ -429,32 +465,21 @@ class MediaDeduplicatorGUI:
             )
             deduplicator.image_dedup.fail_callback = fail_callback
             deduplicator.video_dedup.fail_callback = fail_callback
+            self._deduplicator = deduplicator  # 保存引用供 _gather_and_show 使用
 
             self.update_status("扫描文件中...")
             success = deduplicator.run()
 
-            # ── 暂停：显示部分结果 ──
+            # ── 暂停：只更新按钮，不收集结果 ──
             if self._paused:
-                self.append_log("已暂停 — 正在收集当前发现的重复...")
+                self.append_log("已暂停 — 可点击「收集结果」或「继续」")
                 self.update_status("已暂停")
-                deduplicator.gather_partial_results()
-                self.groups = deduplicator.all_duplicates
-                summary = deduplicator.get_summary()
-
-                if self.groups:
-                    self.root.after(0, self.populate_list, self.groups)
-                stats_text = (
-                    f"暂停 — 已发现 {len(self.groups)} 组重复 | "
-                    f"图片: {summary['image_files']} | "
-                    f"视频: {summary['video_files']}"
-                )
-                self.root.after(0, self.update_stats, stats_text)
-                self.append_log(f"暂停 — 目前已发现 {len(self.groups)} 组重复，可点击继续或停止")
-
-                # 按钮状态：暂停模式
                 self.root.after(0, lambda: self.pause_btn.config(state='disabled'))
                 self.root.after(0, lambda: self.resume_btn.config(state='normal'))
+                self.root.after(0, lambda: self.collect_btn.config(state='normal'))
                 self.root.after(0, lambda: self.stop_btn.config(state='normal'))
+                self.root.after(0, lambda: self.best_btn.config(state='normal'))
+                self.root.after(0, lambda: self.numbered_btn.config(state='normal'))
                 return
 
             # ── 完全停止 ──
@@ -486,6 +511,8 @@ class MediaDeduplicatorGUI:
             )
             self.root.after(0, self.update_stats, stats_text)
             self.root.after(0, self.populate_list, self.groups)
+            self.root.after(0, lambda: self.best_btn.config(state='normal'))
+            self.root.after(0, lambda: self.numbered_btn.config(state='normal'))
             self.update_status(f"完成! 发现 {len(self.groups)} 组重复文件")
             self.append_log(f"全部完成！ 发现 {len(self.groups)} 组重复文件")
 
@@ -506,7 +533,7 @@ class MediaDeduplicatorGUI:
     def populate_list(self, groups):
         self.result_listbox.delete(0, tk.END)
         self.groups = groups
-        
+
         for idx, group in enumerate(groups, 1):
             file_type = "[图片]" if group['type'] == 'image' else "[视频]"
             count = group['count']
@@ -517,6 +544,19 @@ class MediaDeduplicatorGUI:
             else:
                 files_info = ""
             self.result_listbox.insert(tk.END, f"{idx:3d}. {file_type} {similarity} - {count} 个文件{files_info}")
+
+            # 根据标记删除状态设置颜色
+            trashed = group.get("trashed", {})
+            trashed_count = len(trashed)
+            remaining = count - trashed_count
+            if remaining == 1 and trashed_count > 0:
+                fg = "#2e7d32"  # 绿色：还剩1个
+            elif trashed_count > 0:
+                fg = "#e65100"  # 橙色：部分标记删除
+            else:
+                fg = "#000000"  # 默认黑色
+            self.result_listbox.itemconfig(idx - 1, foreground=fg,
+                                           selectforeground=fg)
     
     def on_select_group(self, event):
         selection = self.result_listbox.curselection()
@@ -622,50 +662,88 @@ class MediaDeduplicatorGUI:
         self.update_status(f"已复制路径: {os.path.basename(path)}")
         self.append_log(f"已复制路径: {os.path.basename(path)}")
 
-    def _mark_delete(self, file_path, old_frame):
-        """标记删除：重命名 + .delete → 更新 JSON → 重建卡片"""
-        trashed_path = file_path + ".delete"
+    def _mark_delete(self, file_path, old_frame, rebuild=True):
+        """标记删除：移动到 scan_root/delete/ 子目录，重命名为 原名(delete).后缀"""
+        import shutil
+        scan_root = self.folder_path.get()
+        try:
+            rel = os.path.relpath(file_path, scan_root)
+        except ValueError:
+            rel = os.path.basename(file_path)
+        rel_dir = os.path.dirname(rel)
+        fname = os.path.basename(file_path)
+        name, ext = os.path.splitext(fname)
+        trash_dir = os.path.join(scan_root, "delete", rel_dir)
+        os.makedirs(trash_dir, exist_ok=True)
+        target = os.path.join(trash_dir, f"{name}(delete){ext}")
         counter = 1
-        while os.path.exists(trashed_path):
-            base = file_path + f" ({counter})"
-            trashed_path = base + ".delete"
+        while os.path.exists(target):
+            target = os.path.join(trash_dir, f"{name}({counter})(delete){ext}")
             counter += 1
         try:
-            os.rename(file_path, trashed_path)
+            shutil.move(file_path, target)
         except Exception as e:
             messagebox.showerror("标记删除失败", str(e))
             return
-        self._update_trashed(file_path, trashed_path)
-        old_frame.destroy()
-        self._rebuild_card()
+        self._update_trashed(file_path, target)
+        if old_frame:
+            old_frame.destroy()
+        if rebuild:
+            self._rebuild_card()
         self.append_log(f"[已标记删除] {os.path.basename(file_path)}")
         self.update_status(f"已标记删除: {os.path.basename(file_path)}")
 
     def _restore_file(self, file_path, old_frame):
-        """恢复：重命名去 .delete → 更新 JSON → 重建卡片"""
-        import glob
-        pattern = file_path + "*.delete"
-        candidates = glob.glob(pattern)
-        if not candidates:
+        """恢复：移回原位（冲突加(恢复)） + 清理空目录"""
+        import shutil
+        scan_root = self.folder_path.get()
+        group = self.groups[self.current_group_index]
+        # 用 trashed dict 找实际路径
+        trashed_path = group.get("trashed", {}).get(file_path)
+        if not trashed_path or not os.path.exists(trashed_path):
             messagebox.showerror("恢复失败", "找不到标记删除的文件")
             return
-        trashed_path = candidates[0]
-        base = trashed_path
-        if base.endswith(".delete"):
-            restored = base[:-len(".delete")]
-        else:
-            restored = base
-        counter = 1
-        while os.path.exists(restored):
+
+        # 目标：原路径
+        restored = file_path
+        if os.path.exists(restored):
+            # 冲突 → 加 (恢复)
             d, n = os.path.split(file_path)
             name, ext = os.path.splitext(n)
-            restored = os.path.join(d, f"{name} (恢复{counter}){ext}")
-            counter += 1
+            counter = 1
+            while counter <= 100:
+                restored = os.path.join(d, f"{name} (恢复{counter}){ext}")
+                if not os.path.exists(restored):
+                    break
+                counter += 1
+            if counter > 100:
+                messagebox.showerror("恢复失败", "冲突过多，请手动处理")
+                return
+
         try:
-            os.rename(trashed_path, restored)
+            os.makedirs(os.path.dirname(restored), exist_ok=True)
+            shutil.move(trashed_path, restored)
         except Exception as e:
             messagebox.showerror("恢复失败", str(e))
             return
+
+        # 路径变化 → 更新 group["files"]
+        if restored != file_path:
+            group["files"][group["files"].index(file_path)] = restored
+
+        # 清理空目录
+        trash_dir = os.path.join(scan_root, "delete")
+        try:
+            old_dir = os.path.dirname(trashed_path)
+            while old_dir and old_dir.startswith(trash_dir) and old_dir != trash_dir:
+                if not os.listdir(old_dir):
+                    os.rmdir(old_dir)
+                    old_dir = os.path.dirname(old_dir)
+                else:
+                    break
+        except Exception:
+            pass
+
         self._update_trashed(file_path, None)
         old_frame.destroy()
         self._rebuild_card()
@@ -696,13 +774,143 @@ class MediaDeduplicatorGUI:
             pass
 
     def _rebuild_card(self):
-        """重新显示当前组的所有缩略图卡片"""
+        """重新显示当前组的所有缩略图卡片 + 刷新列表颜色"""
         self.clear_thumbnails()
         self.thumbnail_cache = {}
         group = self.groups[self.current_group_index]
         trashed = group.get("trashed", {})
         for idx, file_path in enumerate(group["files"]):
             self.add_thumbnail(file_path, idx, trashed)
+        # 刷新列表项颜色
+        self.populate_list(self.groups)
+        self.result_listbox.selection_set(self.current_group_index)
+        self.result_listbox.see(self.current_group_index)
+
+    def _gather_and_show(self):
+        """收集当前发现的重复并显示"""
+        if not hasattr(self, '_deduplicator') or not self._deduplicator:
+            messagebox.showinfo("提示", "没有可收集的结果")
+            return
+        self.update_status("正在收集结果...")
+        self.append_log("正在收集当前发现的重复...")
+        dedup = self._deduplicator
+        dedup.gather_partial_results()
+        self.groups = dedup.all_duplicates
+        summary = dedup.get_summary()
+
+        if self.groups:
+            self.populate_list(self.groups)
+            stats_text = (
+                f"暂停 — 已发现 {len(self.groups)} 组重复 | "
+                f"图片: {summary['image_files']} | "
+                f"视频: {summary['video_files']}"
+            )
+            self.update_stats(stats_text)
+        self.update_status("已暂停 — 可继续或停止")
+        self.append_log(f"已收集 {len(self.groups)} 组重复")
+        self.collect_btn.config(state='disabled')
+
+    def _find_group_index(self, file_path):
+        """找到文件所属的重复组索引"""
+        for idx, g in enumerate(self.groups):
+            if file_path in g["files"]:
+                return idx
+        return None
+
+    def _batch_mark(self, file_list):
+        """批量标记删除，只刷新一次"""
+        saved_idx = self.current_group_index
+        for fp in file_list:
+            idx = self._find_group_index(fp)
+            if idx is not None:
+                self.current_group_index = idx
+                self._mark_delete(fp, None, rebuild=False)
+        self.current_group_index = saved_idx
+        self.populate_list(self.groups)
+        self._rebuild_card()
+        self.append_log(f"[批量] 已标记删除 {len(file_list)} 个文件")
+
+    def _auto_keep_best(self):
+        """保留最高清晰度：标记删除组内低清晰度的文件"""
+        to_delete = []
+        for g in self.groups:
+            trashed = g.get("trashed", {})
+            candidates = [f for f in g["files"] if f not in trashed]
+            if len(candidates) <= 1:
+                continue
+
+            if "image" in g["type"]:
+                best_f = None
+                best_px = -1
+                for f in candidates:
+                    try:
+                        img = Image.open(f)
+                        px = img.size[0] * img.size[1]
+                        if px > best_px:
+                            best_px = px
+                            best_f = f
+                    except Exception:
+                        pass
+                if best_f:
+                    for f in candidates:
+                        if f != best_f:
+                            to_delete.append(f)
+
+            elif "video" in g["type"]:
+                from utils import get_video_metadata
+                metas = {}
+                max_dur = 0
+                for f in candidates:
+                    m = get_video_metadata(f)
+                    if m:
+                        metas[f] = m
+                        max_dur = max(max_dur, m.get("duration", 0))
+                if max_dur <= 0:
+                    continue
+                # 找基准时长内的高分辨率
+                same_dur = [f for f in candidates
+                            if f in metas and abs(metas[f].get("duration", 0) - max_dur) <= 2]
+                if len(same_dur) <= 1:
+                    continue
+                best_f = max(same_dur, key=lambda f: metas[f].get("width", 0) * metas[f].get("height", 0))
+                for f in same_dur:
+                    if f != best_f:
+                        to_delete.append(f)
+
+        if to_delete:
+            self._batch_mark(to_delete)
+            messagebox.showinfo("完成", f"已标记删除 {len(to_delete)} 个低清晰度文件")
+        else:
+            messagebox.showinfo("提示", "没有可标记删除的文件")
+
+    def _auto_mark_numbered(self):
+        """批量标记副本：删除名字带(数字)且组内有相同大小的兄弟文件"""
+        import re
+        to_delete = []
+        numbered_pattern = re.compile(r"^(.*?)\s*\(\d+\)(\.[^.]+)$")
+        for g in self.groups:
+            trashed = g.get("trashed", {})
+            candidates = [f for f in g["files"] if f not in trashed]
+            if len(candidates) <= 1:
+                continue
+            for f in candidates:
+                d, n = os.path.split(f)
+                m = numbered_pattern.match(n)
+                if not m:
+                    continue
+                sibling = os.path.join(d, m.group(1) + m.group(2))
+                if sibling in candidates and sibling != f:
+                    try:
+                        if os.path.getsize(f) == os.path.getsize(sibling):
+                            to_delete.append(f)
+                    except OSError:
+                        pass
+
+        if to_delete:
+            self._batch_mark(to_delete)
+            messagebox.showinfo("完成", f"已批量标记 {len(to_delete)} 个副本文件")
+        else:
+            messagebox.showinfo("提示", "没有找到可标记的副本文件")
 
     def _add_image_thumbnail(self, frame, file_path):
         """加载图片缩略图，返回 (w, h, fmt) 或 None"""
@@ -829,7 +1037,10 @@ class MediaDeduplicatorGUI:
         self.start_btn.config(state='normal')
         self.pause_btn.config(state='disabled')
         self.resume_btn.config(state='disabled')
+        self.collect_btn.config(state='disabled')
         self.stop_btn.config(state='disabled')
+        self.best_btn.config(state='disabled')
+        self.numbered_btn.config(state='disabled')
     
     def update_status(self, message):
         """线程安全状态更新：始终通过 after 调度到 UI 线程"""

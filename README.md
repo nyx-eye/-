@@ -1,36 +1,34 @@
 # Media Deduplicator
 
-图片/视频去重工具，支持 GPU 加速（NVIDIA NVDEC），适配大规模媒体库（TB 级）的快速重复文件检测。
+图片/视频去重工具，支持 GPU 加速（NVIDIA NVDEC），适配 TB 级媒体库。
 
 ## 功能
 
 ### 图片去重
-- 基于 pHash 感知哈希
-- 按文件大小分组预筛，跳过 70% 唯一大小的图片
-- `ProcessPoolExecutor` 多进程并行计算
-- 支持完全相同内容的检测
+- pHash 感知哈希，按文件大小分组预筛，跳过唯一大小的图片
+- `ProcessPoolExecutor` 多进程并行
 
 ### 视频去重
-- GPU 加速（ffmpeg NVDEC 硬件解码）→ OpenCV 三级回退
-- 场景切换检测：像素差分 → 结构相似度（SSIM）→ HSV 直方图 三级判定
-- 倒排索引 + 锚点评分：O(K) 匹配，秒级完成
-- 滑动窗口序列比对：解决关键帧偏移导致的对齐问题
-- 连通分量合并：3 个以上相似视频合为一组
-- 支持剪辑/压缩/重编码/变速版本的识别
+- 三级解码回退：NVDEC GPU → ffmpeg CPU → OpenCV
+- 三级场景检测：像素差分 → 结构相似度（SSIM）→ HSV 直方图
+- 按帧序号跳帧（兼容 VFR / 时间戳损坏视频）
+- 倒排索引 + 锚点评分 + 滑动窗口序列比对
+- 连通分量合并，多视频归入一组
+- 识别剪辑/压缩/重编码版本
 
 ### 断点续跑
-- SQLite checkpoint，每 500 张图片/10 个视频写入一次
-- 崩溃或暂停后重启自动从断点继续，不重算
-- 切换文件夹自动清空旧 checkpoint
+- SQLite checkpoint，崩溃或暂停后自动续跑
+- 切换文件夹自动清空旧数据
 
 ### GUI
-- tkinter 图形界面
-- 实时进度条 + ETA 剩余时间预估
-- 实时显示已发现的重复组数量
-- 暂停/继续/停止控制
-- 缩略图预览 + 图片分辨率/格式 + 视频分辨率/帧率/时长
-- 标记删除：重命名为 `.delete`，红色卡片显示，支持恢复
-- JSON 结果导入/导出
+- 暂停 / 继续 / 停止控制，收集结果独立按钮
+- 实时进度条 + ETA 剩余时间 + 已发现重复组计数
+- 缩略图预览：图片显示分辨率/格式，视频显示分辨率/帧率/时长
+- 标记删除：文件移至 `扫描目录/delete/` 子目录，重命名为 `原名(delete).后缀`，支持恢复
+- 已标记删除的卡片红色底色，重复组列表橙色/绿色标识
+- 保留最高清晰度：自动标记删除组内低分辨率文件（视频区分剪辑版）
+- 批量标记副本：自动标记删除名称带 `(数字)` 且大小相同的副本
+- JSON 导入/导出，标记删除状态持久化
 
 ## 安装
 
@@ -38,9 +36,7 @@
 pip install -r requirements.txt
 ```
 
-### GPU 加速（可选）
-
-安装带 CUDA 支持的 ffmpeg：
+GPU 加速需额外安装 ffmpeg：
 
 ```powershell
 winget install Gyan.FFmpeg
@@ -48,39 +44,31 @@ winget install Gyan.FFmpeg
 
 ## 使用
 
-### GUI（推荐）
-
 ```bash
-python gui.py
-```
-
-### 命令行
-
-```bash
-python main.py <目标文件夹>
+python gui.py          # GUI（推荐）
+python main.py 文件夹   # 命令行
 ```
 
 ## 配置
 
-编辑 `config.py` 调整阈值和参数。
+编辑 `config.py`：
 
-| 参数 | 说明 |
-|------|------|
-| `VIDEO_FRAME_SKIP` | CPU 路径每 N 帧检测 1 次场景切换 |
-| `GPU_FRAME_SKIP` | GPU 路径跳帧间隔 |
-| `VIDEO_HASH_THRESHOLD` | 帧哈希海明距离阈值 |
-| `VIDEO_SIMILARITY_THRESHOLD` | 序列相似度阈值 % |
-| `SSIM_THRESHOLD` | 场景切换结构相似度阈值 |
-| `ABSDIFF_THRESHOLD` | 场景切换像素差异阈值 |
-| `MIN_SHARED_FRAMES` | 触发候选的最小共享关键帧数 |
-| `USE_GPU_DECODE` | 启用 ffmpeg NVDEC 硬件解码 |
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `VIDEO_FRAME_SKIP` | CPU 路径帧采样间隔 | 10 |
+| `GPU_FRAME_SKIP` | GPU 路径帧采样间隔 | 5 |
+| `VIDEO_SIMILARITY_THRESHOLD` | 序列相似度阈值 % | 60 |
+| `SSIM_THRESHOLD` | 场景切换相似度阈值 | 0.55 |
+| `ABSDIFF_THRESHOLD` | 场景切换像素差异阈值 | 18 |
+| `MIN_SHARED_FRAMES` | 触发候选的最小共享帧数 | 5 |
+| `USE_GPU_DECODE` | 启用 NVDEC 硬件解码 | True |
 
 ## 输出
 
-处理结果保存在 `results/duplicates.json`，可在 GUI 中通过「导入报告」加载。
+`results/duplicates.json`，可在 GUI 中导入。
 
 ## 依赖
 
 - Python 3.8+
 - Pillow, opencv-python, imagehash, scikit-image, numpy, tqdm
-- ffmpeg（可选，GPU 加速，推荐 Gyan 或 BtbN build）
+- ffmpeg（可选，GPU 加速）

@@ -17,7 +17,8 @@ class MediaScanner:
 
         # 先收集所有文件路径
         all_files = []
-        for r, _, fs in os.walk(self.root):
+        for r, dirs, fs in os.walk(self.root):
+            dirs[:] = [d for d in dirs if d != "delete"]
             if self.stop_event.is_set():
                 log_info("扫描被用户停止")
                 return 0

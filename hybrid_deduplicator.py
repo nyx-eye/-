@@ -139,6 +139,25 @@ class HybridMediaDeduplicator:
         # ── 排序 ──
         self._sort_groups()
 
+        # ── 合并已有 JSON 的 trashed 状态（暂停后继续不丢标记）───
+        import json as _json
+        json_path = os.path.join("results", "duplicates.json")
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    old_data = _json.load(f)
+                old_groups = {}
+                for old_g in old_data.get("groups", []):
+                    if "trashed" in old_g:
+                        key = tuple(sorted(old_g["files"]))
+                        old_groups[key] = old_g["trashed"]
+                for g in self.all_duplicates:
+                    key = tuple(sorted(g["files"]))
+                    if key in old_groups:
+                        g["trashed"] = old_groups[key]
+            except Exception:
+                pass
+
         # ── 阶段5: 报告 ──
         if cp:
             cp.save_progress("report", 1, 1)
@@ -148,7 +167,7 @@ class HybridMediaDeduplicator:
         return True
 
     def gather_partial_results(self):
-        """暂停时收集已处理数据中的重复组（不排序、不清理 checkpoint）"""
+        """暂停时收集已处理数据中的重复组 + 合并 JSON 的 trashed 状态"""
         # 图片：用已算完的哈希直接找重复
         if self.image_dedup.file_to_hash:
             self.image_dedup.duplicate_groups.clear()
@@ -160,7 +179,24 @@ class HybridMediaDeduplicator:
         if cp and cp.is_phase_done("matching"):
             self.all_duplicates.extend(cp.get_duplicates())
 
-        # 暂停时不排序（避免 os.path.getsize 遍历全部文件卡住）
+        # 合并已有 JSON 的 trashed 状态
+        import json as _json
+        json_path = os.path.join("results", "duplicates.json")
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    old_data = _json.load(f)
+                old_groups = {}
+                for old_g in old_data.get("groups", []):
+                    if "trashed" in old_g:
+                        key = tuple(sorted(old_g["files"]))
+                        old_groups[key] = old_g["trashed"]
+                for g in self.all_duplicates:
+                    key = tuple(sorted(g["files"]))
+                    if key in old_groups:
+                        g["trashed"] = old_groups[key]
+            except Exception:
+                pass
 
     def _sort_groups(self):
         """排序：先视频后图片，同类按组内文件总大小从大到小"""
