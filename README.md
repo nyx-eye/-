@@ -14,6 +14,10 @@
 
 Image/video deduplication tool for TB-scale libraries. Detects: identical images (pHash), identical/re-encoded/edited/cross-resolution videos with connected component merging.
 
+## 下载 / Download
+
+[最新版本 / Latest Release](https://github.com/nyx-eye/media-deduplicator/releases/latest)
+
 ## 安装 / Install
 
 ```bash
