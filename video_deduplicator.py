@@ -102,9 +102,9 @@ def _compute_frame_hash(frame):
 
 
 def _is_scene_change_fast(frame, prev_keyframe):
-    """两级场景切换检测：absdiff（快速）→ SSIM（仅在灰色地带）
+    """概率级联场景检测：absdiff → SSIM → 直方图（仅灰色地带）
 
-    第1级 absdiff 过滤 90%+ 的帧，只有灰色地带才用 SSIM
+    absdiff 过滤 90%+ 帧 → SSIM 在两端直接出结果 → 直方图仅打破平局
     """
     if prev_keyframe is None:
         return True
@@ -113,22 +113,24 @@ def _is_scene_change_fast(frame, prev_keyframe):
         gray_cur = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray_prev = cv2.cvtColor(prev_keyframe, cv2.COLOR_BGR2GRAY)
 
-        # ---- 第1级：absdiff 快速过滤 ----
+        # ---- 第1级：absdiff ----
         diff = cv2.absdiff(gray_cur, gray_prev)
         mean_diff = diff.mean()
 
         if mean_diff < ABSDIFF_THRESHOLD * 0.5:
-            return False  # 几乎相同 → 不是切换
+            return False
         if mean_diff > ABSDIFF_THRESHOLD * 2.0:
-            return True   # 明显不同 → 是切换
-
-        # ---- 第2级：灰色地带回退到 SSIM ----
-        from skimage.metrics import structural_similarity as ssim
-        score, _ = ssim(gray_cur, gray_prev, full=True)
-        if score < SSIM_THRESHOLD:
             return True
 
-        # ---- 直方图辅助 ----
+        # ---- 第2级：SSIM ----
+        from skimage.metrics import structural_similarity as ssim
+        score, _ = ssim(gray_cur, gray_prev, full=True)
+        if score < 0.50:
+            return True
+        if score >= 0.65:
+            return False
+
+        # ---- 第3级：直方图打破平局（仅 0.50 ~ 0.65 灰色地带）----
         hsv_cur = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         hsv_prev = cv2.cvtColor(prev_keyframe, cv2.COLOR_BGR2HSV)
         h_bins, s_bins = HIST_BINS

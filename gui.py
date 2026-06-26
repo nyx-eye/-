@@ -76,7 +76,7 @@ class MediaDeduplicatorGUI:
 
         self.import_report_btn = tk.Button(frame_folder, text="导入报告", command=self.load_report,
                  bg='#FF9800', fg='white', font=("微软雅黑", 9),
-                 padx=10, pady=3, cursor="hand2")
+                 padx=10, pady=3, cursor="hand2", state='disabled')
         self.import_report_btn.pack(side=tk.LEFT, padx=5)
         
         # 控制按钮区域
@@ -90,7 +90,7 @@ class MediaDeduplicatorGUI:
         self.start_btn = tk.Button(ctrl_row, text="开始扫描去重",
                                    command=self.start_deduplication,
                                    bg='#2196F3', fg='white', font=("微软雅黑", 9),
-                                   padx=10, pady=4, cursor="hand2")
+                                   padx=10, pady=4, cursor="hand2", state='disabled')
         self.start_btn.pack(side=tk.LEFT, padx=3)
 
         self.pause_btn = tk.Button(ctrl_row, text="暂停",
@@ -284,9 +284,10 @@ class MediaDeduplicatorGUI:
                 return
             self.folder_path.set(folder)
             self.append_log(f"已选择文件夹: {folder}")
-            # 切换文件夹后提示旧结果可能失效
+            self.start_btn.config(state='normal')
+            self.import_report_btn.config(state='normal')
             if self.groups:
-                self.clear_results()    
+                self.clear_results()
     def pause_deduplication(self):
         """暂停：设停止标志 → 等线程停 → 显示部分结果"""
         if not self.running:
@@ -371,6 +372,8 @@ class MediaDeduplicatorGUI:
             self.stats_label.config(text=stats_text)
             
             self.populate_list(self.groups)
+            self.best_btn.config(state='normal')
+            self.numbered_btn.config(state='normal')
             self.update_status(f"导入成功! 发现 {len(self.groups)} 组重复文件")
             self.append_log(f"导入成功! 发现 {len(self.groups)} 组重复文件")
             
@@ -599,6 +602,13 @@ class MediaDeduplicatorGUI:
         
         self.clear_thumbnails()
         self.thumbnail_cache = {}
+        # 只保留当前组的缩略图缓存
+        import glob
+        for old in glob.glob("results/thumbnails/*.jpg"):
+            try:
+                os.remove(old)
+            except Exception:
+                pass
         trashed = group.get("trashed", {})
         for idx, file_path in enumerate(group["files"]):
             self.add_thumbnail(file_path, idx, trashed)
@@ -825,13 +835,16 @@ class MediaDeduplicatorGUI:
                 del group["trashed"]
         try:
             import json as _json
+            os.makedirs("results", exist_ok=True)
             db_path = "results/duplicates.json"
             if os.path.exists(db_path):
                 with open(db_path, "r", encoding="utf-8") as f:
                     data = _json.load(f)
-                data["groups"] = self.groups
-                with open(db_path, "w", encoding="utf-8") as f:
-                    _json.dump(data, f, ensure_ascii=False, indent=2)
+            else:
+                data = {"summary": {}, "groups": []}
+            data["groups"] = self.groups
+            with open(db_path, "w", encoding="utf-8") as f:
+                _json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
 
@@ -996,7 +1009,8 @@ class MediaDeduplicatorGUI:
                         pass
                 if best_f:
                     for f in candidates:
-                        if f != best_f:
+                        if f != best_f and f not in to_delete_set:
+                            to_delete_set.add(f)
                             to_delete.append(f)
 
             elif "video" in g["type"]:
@@ -1010,14 +1024,14 @@ class MediaDeduplicatorGUI:
                         max_dur = max(max_dur, m.get("duration", 0))
                 if max_dur <= 0:
                     continue
-                # 找基准时长内的高分辨率
                 same_dur = [f for f in candidates
                             if f in metas and abs(metas[f].get("duration", 0) - max_dur) <= 2]
                 if len(same_dur) <= 1:
                     continue
                 best_f = max(same_dur, key=lambda f: metas[f].get("width", 0) * metas[f].get("height", 0))
                 for f in same_dur:
-                    if f != best_f:
+                    if f != best_f and f not in to_delete_set:
+                        to_delete_set.add(f)
                         to_delete.append(f)
 
         if to_delete:
@@ -1053,7 +1067,9 @@ class MediaDeduplicatorGUI:
                     if sibling in candidates and sibling != f:
                         try:
                             if os.path.getsize(f) == os.path.getsize(sibling):
-                                to_delete.append(f)
+                                if f not in to_delete_set:
+                                    to_delete_set.add(f)
+                                    to_delete.append(f)
                         except OSError:
                             pass
 
@@ -1063,7 +1079,6 @@ class MediaDeduplicatorGUI:
                     m = get_video_metadata(f)
                     if m:
                         metas[f] = m
-                # 按时长+大小分组，相同的标记为副本
                 for i, f1 in enumerate(candidates):
                     if f1 not in metas:
                         continue
@@ -1078,10 +1093,12 @@ class MediaDeduplicatorGUI:
                         if abs(metas[f2].get("duration", 0) - dur1) <= 2:
                             try:
                                 if abs(os.path.getsize(f2) - sz1) < max(sz1, os.path.getsize(f2)) * 0.05:
-                                    # 保留更短路径的，标记另一个
                                     if len(f2) < len(f1):
-                                        to_delete.append(f1)
-                                    elif f1 not in to_delete:
+                                        if f1 not in to_delete_set:
+                                            to_delete_set.add(f1)
+                                            to_delete.append(f1)
+                                    elif f2 not in to_delete_set:
+                                        to_delete_set.add(f2)
                                         to_delete.append(f2)
                             except OSError:
                                 pass
@@ -1208,6 +1225,8 @@ class MediaDeduplicatorGUI:
         for widget in self.thumb_frame.winfo_children():
             widget.destroy()
         self.thumbnail_cache = {}
+        self.thumb_frame.update_idletasks()
+        self.canvas.configure(scrollregion=(0, 0, 1, 1))
     
     def stop_progress(self):
         self.progress_var.set(0)
