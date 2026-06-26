@@ -197,7 +197,7 @@ class CheckGUI:
 
             # 重新扫描
             self._log("重新扫描文件夹...")
-            dedup = HybridMediaDeduplicator(folder, max_workers=4, resume=False)
+            dedup = HybridMediaDeduplicator(folder, max_workers=4, resume=False, skip_delete=False)
             dedup.scanner.scan()
             if not dedup.scanner.image_files and not dedup.scanner.video_files:
                 self._log("没有找到文件")
@@ -390,6 +390,8 @@ class CheckGUI:
         trashed_path = trashed.get(file_path) if trashed else None
         is_trashed = trashed_path is not None
         display_path = trashed_path if is_trashed else file_path
+        if is_trashed and not os.path.isabs(display_path):
+            display_path = os.path.join(self.folder_path.get(), display_path)
         card_bg = '#ffcdd2' if highlight and is_missing else ('#ffcdd2' if is_trashed else 'white')
 
         frame = tk.Frame(self.thumb_frame, bg=card_bg, relief=tk.RAISED, bd=2)

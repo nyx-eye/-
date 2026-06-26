@@ -618,6 +618,9 @@ class MediaDeduplicatorGUI:
         trashed_path = trashed.get(file_path) if trashed else None
         is_trashed = trashed_path is not None
         display_path = trashed_path if is_trashed else file_path
+        # 相对路径补全（历史 bug 遗留的残缺记录）
+        if is_trashed and not os.path.isabs(display_path):
+            display_path = os.path.join(self.folder_path.get(), display_path)
         card_bg = '#ffcdd2' if is_trashed else 'white'
         fg_color = '#333'
 

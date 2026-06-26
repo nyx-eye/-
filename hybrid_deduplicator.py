@@ -11,7 +11,7 @@ from utils import get_file_size_mb, log_info, log_success
 class HybridMediaDeduplicator:
     def __init__(self, folder_path, max_workers=4,
                  stop_event=None, progress_callback=None,
-                 fail_callback=None, resume=True):
+                 fail_callback=None, resume=True, skip_delete=True):
         self.folder_path = folder_path
         self.max_workers = max_workers
         self.stop_event = stop_event or threading.Event()
@@ -36,7 +36,8 @@ class HybridMediaDeduplicator:
 
         self.scanner = MediaScanner(folder_path,
                                     stop_event=self.stop_event,
-                                    progress_callback=self.progress_callback)
+                                    progress_callback=self.progress_callback,
+                                    skip_delete=skip_delete)
 
         # 实时发现重复的回调
         def _found_cb(source, count):

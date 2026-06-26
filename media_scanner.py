@@ -5,12 +5,14 @@ from config import SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
 from utils import log_info
 
 class MediaScanner:
-    def __init__(self, root_path, stop_event=None, progress_callback=None):
+    def __init__(self, root_path, stop_event=None, progress_callback=None,
+                 skip_delete=True):
         self.root = root_path
         self.image_files = []
         self.video_files = []
         self.stop_event = stop_event or threading.Event()
         self.progress_callback = progress_callback
+        self.skip_delete = skip_delete
 
     def scan(self):
         log_info(f"正在扫描: {self.root}")
@@ -18,7 +20,8 @@ class MediaScanner:
         # 先收集所有文件路径
         all_files = []
         for r, dirs, fs in os.walk(self.root):
-            dirs[:] = [d for d in dirs if d != "delete"]
+            if self.skip_delete:
+                dirs[:] = [d for d in dirs if d != "delete"]
             if self.stop_event.is_set():
                 log_info("扫描被用户停止")
                 return 0
